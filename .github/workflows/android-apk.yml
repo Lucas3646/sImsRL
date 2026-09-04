@@ -1,0 +1,66 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - feat/mobile-v1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Prepare APK
+        run: cp build/app/outputs/flutter-apk/app-debug.apk simsrl-v1-debug.apk
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simsrl-v1-debug-apk
+          path: simsrl-v1-debug.apk
+          retention-days: 30
+
+      - name: Publish downloadable APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v0.1.0-demo
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" simsrl-v1-debug.apk --clobber
+          else
+            gh release create "$RELEASE_TAG" simsrl-v1-debug.apk \
+              --target "$GITHUB_SHA" \
+              --title "sImsRL V1 — APK de test" \
+              --notes "APK Android de démonstration. Ouvre le fichier téléchargé sur Android pour installer l'application." \
+              --prerelease
+          fi
