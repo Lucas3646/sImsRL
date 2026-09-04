@@ -7,8 +7,8 @@ import 'package:simsrl/models/outfit.dart';
 import 'package:simsrl/models/try_on_generation.dart';
 import 'package:simsrl/models/user_profile.dart';
 import 'package:simsrl/services/backend_virtual_try_on_provider.dart';
+import 'package:simsrl/services/hugging_face_catvton_provider.dart';
 import 'package:simsrl/services/local_storage_service.dart';
-import 'package:simsrl/services/mock_virtual_try_on_provider.dart';
 import 'package:simsrl/services/virtual_try_on_provider.dart';
 
 class AppState extends ChangeNotifier {
@@ -29,12 +29,14 @@ class AppState extends ChangeNotifier {
   String? lastError;
 
   VirtualTryOnProvider get tryOnProvider => vtonApiBaseUrl.trim().isEmpty
-      ? MockVirtualTryOnProvider()
+      ? HuggingFaceCatVtonProvider()
       : BackendVirtualTryOnProvider(
           baseUrl: vtonApiBaseUrl.trim().replaceAll(RegExp(r'/$'), ''),
         );
 
-  bool get hasRealTryOnProvider => vtonApiBaseUrl.trim().isNotEmpty;
+  bool get hasRealTryOnProvider => true;
+
+  bool get usesFreeTryOnProvider => vtonApiBaseUrl.trim().isEmpty;
 
   List<Garment> garmentsFor(GarmentCategory category) =>
       garments.where((garment) => garment.category == category).toList();
