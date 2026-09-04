@@ -97,14 +97,14 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   title: Text(
-                    state.hasRealTryOnProvider
-                        ? 'Provider IA configuré'
-                        : 'Provider démo actif',
+                    state.usesFreeTryOnProvider
+                        ? 'CatVTON gratuit actif'
+                        : 'Provider IA privé configuré',
                   ),
                   subtitle: Text(
-                    state.hasRealTryOnProvider
-                        ? 'Les générations passent par ton backend privé.'
-                        : 'Ajoute VTON_API_BASE_URL au build pour activer un vrai rendu.',
+                    state.usesFreeTryOnProvider
+                        ? 'Rendu réel via ZeroGPU : file d’attente et quota quotidien possibles.'
+                        : 'Les générations passent par ton backend privé.',
                   ),
                 ),
               ],
