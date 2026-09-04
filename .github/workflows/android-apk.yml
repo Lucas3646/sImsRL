@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/mobile-v1
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -51,6 +54,7 @@ jobs:
           retention-days: 30
 
       - name: Publish downloadable APK
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: v0.1.0-demo
