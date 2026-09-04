@@ -149,13 +149,16 @@ class DressingRoomScreen extends StatelessWidget {
       return;
     }
     if (state.hasRealTryOnProvider) {
+      final destination = state.usesFreeTryOnProvider
+          ? 'Hugging Face ZeroGPU avec le modèle CatVTON'
+          : 'ton fournisseur IA privé';
       final accepted = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           icon: const Icon(Icons.privacy_tip_outlined),
           title: const Text('Envoi au service IA'),
-          content: const Text(
-            'Ta photo et les vêtements sélectionnés seront temporairement envoyés au fournisseur configuré pour générer le rendu.',
+          content: Text(
+            'Ta photo et les vêtements sélectionnés seront temporairement envoyés à $destination pour générer le rendu.',
           ),
           actions: [
             TextButton(
