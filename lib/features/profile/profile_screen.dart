@@ -103,10 +103,33 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   subtitle: Text(
                     state.usesFreeTryOnProvider
-                        ? 'Rendu réel via ZeroGPU : file d’attente et quota quotidien possibles.'
+                        ? state.hasHuggingFaceToken
+                              ? 'Compte authentifié : quota gratuit quotidien et priorité améliorée.'
+                              : 'Ajoute une clé gratuite pour activer les générations quotidiennes.'
                         : 'Les générations passent par ton backend privé.',
                   ),
                 ),
+                if (state.usesFreeTryOnProvider) ...[
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      state.hasHuggingFaceToken
+                          ? Icons.verified_user_outlined
+                          : Icons.key_outlined,
+                    ),
+                    title: Text(
+                      state.hasHuggingFaceToken
+                          ? 'Clé Hugging Face enregistrée'
+                          : 'Connecter Hugging Face',
+                    ),
+                    subtitle: const Text(
+                      'La clé reste chiffrée dans le stockage sécurisé du téléphone.',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _configureHuggingFace(context),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -167,6 +190,102 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
     if (confirmed ?? false) await state.resetAllData();
+  }
+
+  Future<void> _configureHuggingFace(BuildContext context) async {
+    final state = AppScope.of(context);
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var hideToken = true;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          icon: const Icon(Icons.key_rounded),
+          title: Text(
+            state.hasHuggingFaceToken
+                ? 'Compte Hugging Face connecté'
+                : 'Connecter Hugging Face',
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Colle ta clé Read commençant par hf_. Elle ne sera jamais affichée après son enregistrement.',
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: controller,
+                  obscureText: hideToken,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  keyboardType: TextInputType.visiblePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Clé Hugging Face',
+                    hintText: 'hf_…',
+                    suffixIcon: IconButton(
+                      tooltip: hideToken ? 'Afficher' : 'Masquer',
+                      onPressed: () => setDialogState(
+                        () => hideToken = !hideToken,
+                      ),
+                      icon: Icon(
+                        hideToken
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                  ),
+                  validator: (value) {
+                    final token = value?.trim() ?? '';
+                    if (!token.startsWith('hf_') || token.length < 12) {
+                      return 'Clé invalide : elle doit commencer par hf_.';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (state.hasHuggingFaceToken)
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, 'remove'),
+                child: const Text('Retirer la clé'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.pop(dialogContext, controller.text.trim());
+                }
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (action == null || !context.mounted) return;
+    if (action == 'remove') {
+      await state.removeHuggingFaceToken();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Clé Hugging Face supprimée.')),
+      );
+      return;
+    }
+    await state.saveHuggingFaceToken(action);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Hugging Face est maintenant connecté.')),
+    );
   }
 }
 

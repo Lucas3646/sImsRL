@@ -39,7 +39,7 @@ class DressingRoomScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(99),
             ),
             child: Text(
-              state.hasRealTryOnProvider ? 'IA PRÊTE' : 'MODE DÉMO',
+              state.hasRealTryOnProvider ? 'IA PRÊTE' : 'IA À CONNECTER',
               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
             ),
           ),
@@ -144,6 +144,16 @@ class DressingRoomScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Ajoute et sélectionne au minimum un haut et un bas.'),
+        ),
+      );
+      return;
+    }
+    if (state.usesFreeTryOnProvider && !state.hasHuggingFaceToken) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ajoute ta clé Hugging Face dans l’onglet Profil.',
+          ),
         ),
       );
       return;

@@ -17,10 +17,12 @@ class HuggingFaceCatVtonProvider implements VirtualTryOnProvider {
   HuggingFaceCatVtonProvider({
     http.Client? client,
     this.baseUrl = 'https://zhengchong-catvton.hf.space',
+    this.accessToken,
   }) : _client = client ?? http.Client();
 
   final http.Client _client;
   final String baseUrl;
+  final String? accessToken;
 
   @override
   String get name => 'CatVTON ZeroGPU gratuit';
@@ -30,6 +32,11 @@ class HuggingFaceCatVtonProvider implements VirtualTryOnProvider {
 
   @override
   Future<TryOnGeneration> generateOutfit(TryOnRequest request) async {
+    if (accessToken?.trim().isEmpty ?? true) {
+      throw const VirtualTryOnException(
+        'Connecte ton compte Hugging Face depuis l’onglet Profil.',
+      );
+    }
     final person = File(request.personImagePath);
     if (!person.existsSync()) {
       throw const VirtualTryOnException(
@@ -114,7 +121,9 @@ class HuggingFaceCatVtonProvider implements VirtualTryOnProvider {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$baseUrl/gradio_api/upload'),
-    )..files.add(await http.MultipartFile.fromPath('files', path));
+    )
+      ..headers.addAll(_authorizationHeaders)
+      ..files.add(await http.MultipartFile.fromPath('files', path));
     final streamed = await _client
         .send(request)
         .timeout(const Duration(seconds: 45));
@@ -157,7 +166,10 @@ class HuggingFaceCatVtonProvider implements VirtualTryOnProvider {
     final response = await _client
         .post(
           Uri.parse('$baseUrl/gradio_api/call/submit_function'),
-          headers: const {'content-type': 'application/json'},
+          headers: {
+            ..._authorizationHeaders,
+            'content-type': 'application/json',
+          },
           body: jsonEncode({
             'data': [
               {'background': person, 'layers': const [], 'composite': null},
@@ -189,7 +201,10 @@ class HuggingFaceCatVtonProvider implements VirtualTryOnProvider {
     final request = http.Request(
       'GET',
       Uri.parse('$baseUrl/gradio_api/call/submit_function/$eventId'),
-    )..headers['accept'] = 'text/event-stream';
+    )..headers.addAll({
+        ..._authorizationHeaders,
+        'accept': 'text/event-stream',
+      });
     final streamed = await _client
         .send(request)
         .timeout(const Duration(seconds: 45));
@@ -258,6 +273,10 @@ class HuggingFaceCatVtonProvider implements VirtualTryOnProvider {
   };
 
   int _order(String category) => category == 'tops' ? 0 : 1;
+
+  Map<String, String> get _authorizationHeaders => {
+    'authorization': 'Bearer ${accessToken!.trim()}',
+  };
 
   String _basename(String path) =>
       path.substring(path.replaceAll('\\', '/').lastIndexOf('/') + 1);

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:simsrl/models/garment.dart';
 import 'package:simsrl/models/outfit.dart';
@@ -12,13 +13,19 @@ import 'package:simsrl/services/local_storage_service.dart';
 import 'package:simsrl/services/virtual_try_on_provider.dart';
 
 class AppState extends ChangeNotifier {
-  AppState({LocalStorageService? storage})
-    : _storage = storage ?? LocalStorageService();
+  AppState({
+    LocalStorageService? storage,
+    FlutterSecureStorage? secureStorage,
+  }) : _storage = storage ?? LocalStorageService(),
+       _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   static const vtonApiBaseUrl = String.fromEnvironment('VTON_API_BASE_URL');
+  static const _huggingFaceTokenKey = 'hugging_face_access_token';
 
   final LocalStorageService _storage;
+  final FlutterSecureStorage _secureStorage;
   final Map<GarmentCategory, String> _selection = {};
+  String? _huggingFaceToken;
 
   bool isLoading = true;
   bool onboardingComplete = false;
@@ -29,12 +36,15 @@ class AppState extends ChangeNotifier {
   String? lastError;
 
   VirtualTryOnProvider get tryOnProvider => vtonApiBaseUrl.trim().isEmpty
-      ? HuggingFaceCatVtonProvider()
+      ? HuggingFaceCatVtonProvider(accessToken: _huggingFaceToken)
       : BackendVirtualTryOnProvider(
           baseUrl: vtonApiBaseUrl.trim().replaceAll(RegExp(r'/$'), ''),
         );
 
-  bool get hasRealTryOnProvider => true;
+  bool get hasHuggingFaceToken => _huggingFaceToken?.isNotEmpty ?? false;
+
+  bool get hasRealTryOnProvider =>
+      vtonApiBaseUrl.trim().isNotEmpty || hasHuggingFaceToken;
 
   bool get usesFreeTryOnProvider => vtonApiBaseUrl.trim().isEmpty;
 
@@ -53,6 +63,13 @@ class AppState extends ChangeNotifier {
       .toList(growable: false);
 
   Future<void> initialize() async {
+    try {
+      _huggingFaceToken = (await _secureStorage.read(
+        key: _huggingFaceTokenKey,
+      ))?.trim();
+    } on Object {
+      _huggingFaceToken = null;
+    }
     try {
       final snapshot = await _storage.load();
       onboardingComplete = snapshot.onboardingComplete;
@@ -281,8 +298,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> saveHuggingFaceToken(String token) async {
+    final normalized = token.trim();
+    if (!normalized.startsWith('hf_') || normalized.length < 12) {
+      throw const FormatException(
+        'La clé doit commencer par hf_.',
+      );
+    }
+    await _secureStorage.write(
+      key: _huggingFaceTokenKey,
+      value: normalized,
+    );
+    _huggingFaceToken = normalized;
+    notifyListeners();
+  }
+
+  Future<void> removeHuggingFaceToken() async {
+    await _secureStorage.delete(key: _huggingFaceTokenKey);
+    _huggingFaceToken = null;
+    notifyListeners();
+  }
+
   Future<void> resetAllData() async {
     await _storage.deleteAll();
+    await _secureStorage.delete(key: _huggingFaceTokenKey);
+    _huggingFaceToken = null;
     onboardingComplete = false;
     demoMode = false;
     profile = null;
